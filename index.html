@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta
+        name="description"
+        content="Dashboard interactivo de productividad e impacto científico."
+    >
+    <title>Rendimiento académico</title>
+    <link rel="stylesheet" href="./styles.css?v=20261027-top500">
+</head>
+<body>
+    <header class="encabezado">
+        <div class="encabezado__contenido">
+            <p class="encabezado__etiqueta">Análisis bibliométrico</p>
+            <h1>Rendimiento académico</h1>
+            <p class="encabezado__descripcion">
+                Explora la productividad y el impacto científico por categoría,
+                subcategoría y cuadrante.
+            </p>
+        </div>
+    </header>
+
+    <main class="contenedor">
+        <!-- JavaScript actualizará este mensaje durante la carga del JSON. -->
+        <div id="estado-carga" class="estado estado--cargando" role="status">
+            Cargando información del dashboard…
+        </div>
+
+        <!-- Los filtros controlarán todos los componentes del dashboard. -->
+        <section class="panel panel--filtros" aria-labelledby="titulo-filtros">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Control</p>
+                    <h2 id="titulo-filtros">Filtros principales</h2>
+                </div>
+                <button id="boton-restablecer" class="boton" type="button">
+                    Restablecer
+                </button>
+            </div>
+
+            <div class="filtros">
+                <label class="campo" for="filtro-categoria">
+                    <span>Categoría</span>
+                    <select id="filtro-categoria" disabled>
+                        <option value="">Cargando categorías…</option>
+                    </select>
+                </label>
+
+                <label class="campo" for="filtro-subcategoria">
+                    <span>Subcategoría</span>
+                    <select id="filtro-subcategoria" disabled>
+                        <option value="Consolidado">Consolidado</option>
+                    </select>
+                </label>
+
+            </div>
+        </section>
+
+
+        <section
+            id="panel-cobertura-top-500"
+            class="panel cobertura-top-500"
+            aria-labelledby="titulo-cobertura-top-500"
+            hidden
+        >
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Cobertura de la fuente</p>
+                    <h2 id="titulo-cobertura-top-500">Participación FCNM en el Top 500</h2>
+                    <p id="contexto-top-500" class="cobertura-top-500__descripcion"></p>
+                </div>
+            </div>
+
+            <div class="cobertura-top-500__tarjetas">
+                <article class="cobertura-top-500__tarjeta">
+                    <span>Investigadores oficiales</span>
+                    <strong id="top-500-total-oficiales">—</strong>
+                    <small>Lista oficial FCNM</small>
+                </article>
+                <article class="cobertura-top-500__tarjeta cobertura-top-500__tarjeta--presente">
+                    <span>Presentes en Top 500</span>
+                    <strong id="top-500-presentes">—</strong>
+                    <small id="top-500-presentes-porcentaje">—</small>
+                </article>
+                <article class="cobertura-top-500__tarjeta cobertura-top-500__tarjeta--ausente">
+                    <span>No aparecen en el archivo</span>
+                    <strong id="top-500-ausentes">—</strong>
+                    <small>No equivale a producción científica nula</small>
+                </article>
+            </div>
+
+            <div class="cobertura-top-500__encabezado-ausentes">
+                <p>
+                    Consulte qué investigadores oficiales no forman parte de esta
+                    exportación de SciVal.
+                </p>
+                <button
+                    id="boton-ausentes-top-500"
+                    class="boton"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="contenido-ausentes-top-500"
+                >
+                    Mostrar investigadores ausentes
+                </button>
+            </div>
+
+            <div id="contenido-ausentes-top-500" hidden>
+                <div class="tabla-contenedor">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Investigador</th>
+                                <th>Scopus ID</th>
+                                <th>Actividad</th>
+                                <th>Consulta</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tabla-ausentes-top-500"></tbody>
+                    </table>
+                </div>
+                <p class="cobertura-top-500__nota">
+                    La ausencia indica únicamente que el investigador no aparece en
+                    este archivo Top 500 para el periodo exportado. No se le asignan
+                    Output, FWCI ni citas iguales a cero.
+                </p>
+            </div>
+        </section>
+
+        <section class="panel panel-exclusiones" aria-labelledby="titulo-exclusiones">
+            <div class="panel__encabezado panel__encabezado--sin-margen">
+                <div>
+                    <p class="panel__sobrelinea">Escenario de análisis</p>
+                    <h2 id="titulo-exclusiones">Excluir investigadores</h2>
+                    <p id="resumen-exclusiones" class="exclusiones__descripcion">
+                        Ningún investigador excluido.
+                    </p>
+                </div>
+                <button
+                    id="boton-exclusiones"
+                    class="boton"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="contenido-exclusiones"
+                >
+                    Mostrar exclusiones
+                </button>
+            </div>
+
+            <div id="contenido-exclusiones" class="exclusiones__contenido" hidden>
+                <label class="campo exclusiones__buscador" for="buscar-exclusion">
+                    <span>Buscar por nombre o Scopus ID</span>
+                    <input
+                        id="buscar-exclusion"
+                        type="search"
+                        placeholder="Nombre o Scopus ID…"
+                        autocomplete="off"
+                        disabled
+                    >
+                </label>
+
+                <div id="lista-exclusiones" class="exclusiones__lista" role="group" aria-label="Investigadores disponibles">
+                    <p class="tabla-vacia">Cargando investigadores…</p>
+                </div>
+
+                <div class="exclusiones__acciones">
+                    <p id="resumen-seleccion-exclusiones">0 seleccionados para excluir.</p>
+                    <div>
+                        <button id="seleccionar-exclusiones-visibles" class="boton boton--secundario" type="button" disabled>
+                            Seleccionar visibles
+                        </button>
+                        <button id="limpiar-exclusiones" class="boton boton--secundario" type="button" disabled>
+                            Limpiar
+                        </button>
+                        <button id="aplicar-exclusiones" class="boton" type="button" disabled>
+                            Aplicar exclusiones
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="etiquetas-exclusiones" class="exclusiones__etiquetas" hidden></div>
+        </section>
+        <!-- Este panorama usa todos los investigadores oficiales de la FCNM. -->
+        <!-- Sus indicadores no cambian con los filtros interactivos. -->
+        <section id="panorama-global" class="panel panorama-global" aria-labelledby="titulo-panorama-global">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Vista general de la facultad</p>
+                    <h2 id="titulo-panorama-global">Panorama global de investigadores</h2>
+                    <p class="panorama-global__descripcion">
+                        Indicadores consolidados de los investigadores de la FCNM,
+                        considerando todas las categorías y subcategorías disponibles.
+                    </p>
+                </div>
+                <div class="panorama-global__acciones">
+                    <span class="insignia-global">Toda la FCNM</span>
+                    <button
+                        id="boton-panorama-global"
+                        class="boton"
+                        type="button"
+                        aria-expanded="false"
+                        aria-controls="contenido-panorama-global"
+                    >
+                        Mostrar panorama
+                    </button>
+                </div>
+            </div>
+
+            <div id="contenido-panorama-global" hidden>
+              <div class="tarjetas-globales">
+                <article class="tarjeta-global"><span>Investigadores</span><strong id="global-investigadores">—</strong><small>Scopus author ID únicos</small></article>
+                <article class="tarjeta-global"><span>Producción estimada</span><strong id="global-output">—</strong><small>Máximo observado por autor</small></article>
+                <article class="tarjeta-global"><span>Citas estimadas</span><strong id="global-citas">—</strong><small>Máximo observado por autor</small></article>
+                <article class="tarjeta-global"><span>FWCI promedio</span><strong id="global-fwci">—</strong><small id="global-fwci-mediana">Mediana: —</small></article>
+                <article class="tarjeta-global"><span>Actividad reciente</span><strong id="global-activos">—</strong><small id="global-periodo-activos">Publicación reciente: —</small></article>
+                <article class="tarjeta-global"><span>FWCI ≥ 1</span><strong id="global-fwci-referencia">—</strong><small>Impacto igual o superior al referente mundial</small></article>
+                <article class="tarjeta-global"><span>Multidisciplinarios</span><strong id="global-multidisciplinarios">—</strong><small>Presentes en dos o más categorías</small></article>
+                <article class="tarjeta-global"><span>h-index</span><strong id="global-h-index">—</strong><small id="global-h-index-destacado">Máximo: —</small></article>
+              </div>
+
+              <details class="metodologia-global">
+                <summary>¿Cómo se calcularon estas cifras?</summary>
+                <div class="metodologia-global__contenido">
+                    <p id="global-nota-metodologica"></p>
+                    <ul>
+                        <li><strong>Unidad de análisis:</strong> <span id="global-unidad-analisis">—</span>.</li>
+                        <li><strong>Output:</strong> <span id="global-metodo-output">—</span>.</li>
+                        <li><strong>Citas:</strong> <span id="global-metodo-citas">—</span>.</li>
+                        <li><strong>FWCI:</strong> <span id="global-metodo-fwci">—</span>.</li>
+                    </ul>
+                </div>
+              </details>
+            </div>
+        </section>
+
+        <section aria-labelledby="titulo-resumen">
+            <div class="seccion-encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Vista general</p>
+                    <h2 id="titulo-resumen">Resumen de la selección</h2>
+                </div>
+                <p id="resumen-seleccion" class="seccion-encabezado__detalle">
+                    Esperando selección
+                </p>
+            </div>
+
+            <div class="tarjetas-kpi">
+                <article class="tarjeta-kpi">
+                    <span class="tarjeta-kpi__titulo">Investigadores</span>
+                    <strong id="kpi-investigadores">—</strong>
+                    <small>Autores únicos</small>
+                </article>
+
+                <article class="tarjeta-kpi">
+                    <span class="tarjeta-kpi__titulo">Producción</span>
+                    <strong id="kpi-output">—</strong>
+                    <small>Output acumulado</small>
+                </article>
+
+                <article class="tarjeta-kpi">
+                    <span class="tarjeta-kpi__titulo">Citas</span>
+                    <strong id="kpi-citas">—</strong>
+                    <small>Citas acumuladas</small>
+                </article>
+
+                <article class="tarjeta-kpi">
+                    <span class="tarjeta-kpi__titulo">FWCI</span>
+                    <strong id="kpi-fwci">—</strong>
+                    <small>Promedio del conjunto</small>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel" aria-labelledby="titulo-matriz">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Visualización principal</p>
+                    <h2 id="titulo-matriz">Matriz de productividad e impacto</h2>
+                </div>
+            </div>
+
+            <div class="grafico-resumen">
+                <small id="texto-umbrales">Calculando umbrales…</small>
+
+                <div class="resumen-cuadrantes" aria-label="Distribución por cuadrante">
+                    <span class="cuadrante cuadrante--c1">
+                        C1 <strong id="conteo-c1">—</strong>
+                    </span>
+                    <span class="cuadrante cuadrante--c2">
+                        C2 <strong id="conteo-c2">—</strong>
+                    </span>
+                    <span class="cuadrante cuadrante--c3">
+                        C3 <strong id="conteo-c3">—</strong>
+                    </span>
+                    <span class="cuadrante cuadrante--c4">
+                        C4 <strong id="conteo-c4">—</strong>
+                    </span>
+                </div>
+            </div>
+
+            <div
+                id="grafico-scatter"
+                class="grafico-scatter"
+                aria-label="Gráfico de Output y FWCI por investigador"
+            ></div>
+        </section>
+
+        <section class="panel" aria-labelledby="titulo-histograma-fwci">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Distribución de impacto</p>
+                    <h2 id="titulo-histograma-fwci">Investigadores por rango de FWCI</h2>
+                    <p class="histograma__descripcion">
+                        Seleccione una o varias barras para analizar sus investigadores.
+                    </p>
+                </div>
+                <button
+                    id="boton-histograma"
+                    class="boton"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="contenido-histograma"
+                >
+                    Mostrar histograma
+                </button>
+            </div>
+
+            <div id="contenido-histograma" hidden>
+                <div
+                    id="grafico-histograma-fwci"
+                    class="grafico-histograma"
+                    aria-label="Distribución de investigadores por intervalos de FWCI"
+                ></div>
+                <div class="histograma__acciones">
+                    <p id="resumen-histograma">Preparando distribución…</p>
+                    <div>
+                        <button id="ver-investigadores-histograma" class="boton" type="button" disabled>
+                            Ver investigadores
+                        </button>
+                        <button id="limpiar-histograma" class="boton boton--secundario" type="button" disabled>
+                            Limpiar selección
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+        <section class="panel" aria-labelledby="titulo-analisis-cuadrante">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Análisis dinámico</p>
+                    <h2 id="titulo-analisis-cuadrante">Todos los cuadrantes</h2>
+                </div>
+                <p id="detalle-analisis-cuadrante" class="seccion-encabezado__detalle">
+                    Métricas de la selección visible
+                </p>
+            </div>
+
+            <div class="metricas-cuadrante">
+                <article class="metrica-cuadrante">
+                    <span>Investigadores</span>
+                    <strong id="cuadrante-investigadores">—</strong>
+                    <small>Autores únicos visibles</small>
+                </article>
+                <article class="metrica-cuadrante">
+                    <span>Producción</span>
+                    <strong id="cuadrante-output">—</strong>
+                    <small>Output acumulado</small>
+                </article>
+                <article class="metrica-cuadrante">
+                    <span>FWCI promedio</span>
+                    <strong id="cuadrante-fwci-promedio">—</strong>
+                    <small>Media aritmética</small>
+                </article>
+                <article class="metrica-cuadrante">
+                    <span>FWCI mediano</span>
+                    <strong id="cuadrante-fwci-mediana">—</strong>
+                    <small>Valor central</small>
+                </article>
+                <article class="metrica-cuadrante">
+                    <span>Rango FWCI</span>
+                    <strong id="cuadrante-fwci-rango">—</strong>
+                    <small>Mínimo – máximo</small>
+                </article>
+                <article class="metrica-cuadrante metrica-cuadrante--texto">
+                    <span>Mayor impacto</span>
+                    <strong id="cuadrante-mejor-fwci">—</strong>
+                    <small id="cuadrante-mejor-fwci-valor">FWCI máximo</small>
+                </article>
+                <article class="metrica-cuadrante metrica-cuadrante--texto">
+                    <span>Menor impacto</span>
+                    <strong id="cuadrante-menor-fwci">—</strong>
+                    <small id="cuadrante-menor-fwci-valor">FWCI mínimo</small>
+                </article>
+                <article class="metrica-cuadrante metrica-cuadrante--texto">
+                    <span>Mayor producción</span>
+                    <strong id="cuadrante-mayor-output">—</strong>
+                    <small id="cuadrante-mayor-output-valor">Output máximo</small>
+                </article>
+            </div>
+        </section>
+
+        <section id="panel-investigadores" class="panel" aria-labelledby="titulo-tabla">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Detalle</p>
+                    <h2 id="titulo-tabla">Investigadores</h2>
+                </div>
+
+                <div class="tabla-controles">
+                    <label class="campo campo--cuadrante" for="filtro-cuadrante">
+                        <span>Filtrar cuadrante</span>
+                        <select id="filtro-cuadrante" disabled>
+                            <option value="Todos">Todos los cuadrantes</option>
+                            <option value="C1">C1 · Destacados</option>
+                            <option value="C2">C2 · Alto impacto</option>
+                            <option value="C3">C3 · Alta producción</option>
+                            <option value="C4">C4 · Bajo desempeño</option>
+                        </select>
+                    </label>
+
+                    <label class="buscador campo" for="buscar-investigador">
+                        <span>Buscar investigador</span>
+                        <input
+                            id="buscar-investigador"
+                            type="search"
+                            placeholder="Nombre o Scopus ID…"
+                            disabled
+                        >
+                    </label>
+                </div>
+            </div>
+
+            <div class="filtros-numericos" aria-label="Filtros numéricos del análisis">
+                <label class="campo campo--limite" for="filtro-fwci-maximo">
+                    <span>FWCI máximo (≤)</span>
+                    <input id="filtro-fwci-maximo" type="text" inputmode="decimal" placeholder="Sin límite" disabled>
+                </label>
+                <label class="campo campo--limite" for="filtro-output-maximo">
+                    <span>Output máximo (≤)</span>
+                    <input id="filtro-output-maximo" type="text" inputmode="decimal" placeholder="Sin límite" disabled>
+                </label>
+                <button id="aplicar-filtros-numericos" class="boton" type="button" disabled>Aplicar filtros</button>
+                <button id="limpiar-filtros-numericos" class="boton boton--secundario" type="button" disabled>Limpiar</button>
+            </div>
+            <p id="error-filtros-numericos" class="error-filtros" role="alert" hidden></p>
+            <p id="tabla-resumen" class="tabla-resumen">
+                Preparando registros…
+            </p>
+
+            <div class="tabla-contenedor">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>
+                                <button class="orden-tabla" data-columna="Name" type="button">
+                                    Nombre
+                                </button>
+                            </th>
+                            <th>
+                                <button class="orden-tabla" data-columna="Output" type="button">
+                                    Output
+                                </button>
+                            </th>
+                            <th>
+                                <button class="orden-tabla" data-columna="FWCI" type="button">
+                                    FWCI <span aria-hidden="true">↓</span>
+                                </button>
+                            </th>
+                            <th>
+                                <button class="orden-tabla" data-columna="Citations" type="button">
+                                    Citas
+                                </button>
+                            </th>
+                            <th>
+                                <button class="orden-tabla" data-columna="h-index" type="button">
+                                    h-index
+                                </button>
+                            </th>
+                            <th>Cuadrante</th>
+                            <th>Perfil</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tabla-investigadores">
+                        <tr>
+                            <td colspan="7" class="tabla-vacia">
+                                La tabla se llenará después de cargar los datos.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <nav class="paginacion" aria-label="Paginación de investigadores">
+                <button id="pagina-anterior" class="boton" type="button" disabled>
+                    Anterior
+                </button>
+                <span id="pagina-actual">Página 1 de 1</span>
+                <button id="pagina-siguiente" class="boton" type="button" disabled>
+                    Siguiente
+                </button>
+            </nav>
+        </section>
+
+        <section id="panel-panorama-individual" class="panel" aria-labelledby="titulo-panorama-individual">
+            <div class="panel__encabezado">
+                <div>
+                    <p class="panel__sobrelinea">Consulta independiente</p>
+                    <h2 id="titulo-panorama-individual">Panorama individual del investigador</h2>
+                    <p class="panorama-individual__descripcion">
+                        Consulte todas las categorías y subcategorías en las que aparece un investigador.
+                        Esta sección no depende de los filtros anteriores.
+                    </p>
+                </div>
+                <button
+                    id="boton-panorama-individual"
+                    class="boton"
+                    type="button"
+                    aria-expanded="false"
+                    aria-controls="contenido-panorama-individual"
+                >
+                    Mostrar búsqueda
+                </button>
+            </div>
+
+            <div id="contenido-panorama-individual" hidden>
+                <label class="campo buscador panorama-individual__buscador" for="buscar-investigador-global">
+                    <span>Buscar por nombre o Scopus ID</span>
+                    <input
+                        id="buscar-investigador-global"
+                        type="search"
+                        placeholder="Ejemplo: John Doe o 572…"
+                        autocomplete="off"
+                        disabled
+                    >
+                </label>
+                <p id="resumen-panorama-individual" class="tabla-resumen">
+                    Escriba un nombre o Scopus ID para comenzar.
+                </p>
+                <div id="resultados-panorama-individual" class="panorama-individual__resultados"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer class="pie-pagina">
+        <p>Fuente: SciVal · Score representado mediante FWCI</p>
+        <p id="fecha-datos">Datos pendientes de carga</p>
+    </footer>
+
+    <!-- Plotly se guarda localmente para que el gráfico no dependa de un CDN. -->
+    <script src="./plotly.min.js"></script>
+
+    <!-- defer espera a que el HTML esté disponible antes de ejecutar JavaScript. -->
+    <script src="./app.js?v=20261027-top500" defer></script>
+</body>
+</html>
